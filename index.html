@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link href="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.css" rel="stylesheet" />
+        <link rel="stylesheet" href="https://cdn.datatables.net/2.3.2/css/dataTables.dataTables.css" />
+        <script src="https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js"></script>
+        <script src="./dist/tsde.min.js"></script>
+        <script src="https://code.jquery.com/jquery-4.0.0-rc.1.slim.min.js"></script>        
+        <script src="https://cdn.datatables.net/2.3.2/js/dataTables.js"></script>
+        <style>
+            /* prevent flowbite and datatables clash */
+            select#dt-length-0 {
+                width: 70px;
+            }
+
+            #tabs {
+                margin-top: 50px;
+            }
+        </style>
+        <script>
+            window.app = {
+                tabs: [
+                    "Version",
+                    "Export Date",
+                    "Files",
+                    "Log",
+                    "Trace",
+                    "Vehicle Type",
+                    "Comment",
+                    "Run",
+                    "Run Attribute",
+                    "Roster",
+                    "Roster Day",
+                    "Roster Attribute",
+                    "Pay Type",
+                    "Travel",
+                    "Division",
+                    "Transfer",
+                    "Line Trace",
+                    "Line Attribute",
+                    "Pattern Attribute",
+                    "Line Point Label",
+                    "Division Garage"
+                ],
+                state: {
+                    selected_tab: null
+                }
+            }
+        </script>
+    </head>
+    <body class="mb-4 p-6">
+        <div class="max-w-sm mx-auto">
+            <h1 class="mb-4 text-4xl font-extrabold leading-none tracking-tight text-gray-900 md:text-5xl lg:text-6xl dark:text-white mx-auto" style="text-align: center">TSDE Checker</h1>
+
+            <form class="max-w-sm mx-auto">
+                <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white" for="file">Upload Your TSDE .zip File</label>
+                <input class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400" id="file" type="file">
+            </form>
+        </div>
+
+
+        <div id="tabs" class="text-sm font-medium text-center text-gray-500 border-b border-gray-200 dark:text-gray-400 dark:border-gray-700" style="display: none; text-align: left">
+            <div class="md:flex">
+                <ul class="flex-column space-y space-y-4 text-sm font-medium text-gray-500 dark:text-gray-400 md:me-4 mb-4 md:mb-0">
+                </ul>
+                <div id="results" class="p-6 bg-gray-50 text-medium text-gray-500 dark:text-gray-400 dark:bg-gray-800 rounded-lg w-full" style="white-space: break-spaces">
+                </div>
+            </div>
+        </div>
+        <script>
+            function render_tabs() {
+                const ul = document.querySelector("#tabs ul");
+                ul.innerHTML = "";
+                window.app.tabs.forEach(tab => {
+                    console.log(app.state.selected_tab, tab);
+                    if (app.state.selected_tab === tab) {
+                        ul.innerHTML += `<li data-page="${tab}">
+                                <a href="#" class="inline-flex items-center px-4 py-3 text-white bg-blue-700 rounded-lg active w-full dark:bg-blue-600" aria-current="page">
+                                    <svg data-page="${tab}" class="text-white w-4 h-4 me-2 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 18 18"><path d="M6.143 0H1.857A1.857 1.857 0 0 0 0 1.857v4.286C0 7.169.831 8 1.857 8h4.286A1.857 1.857 0 0 0 8 6.143V1.857A1.857 1.857 0 0 0 6.143 0Zm10 0h-4.286A1.857 1.857 0 0 0 10 1.857v4.286C10 7.169 10.831 8 11.857 8h4.286A1.857 1.857 0 0 0 18 6.143V1.857A1.857 1.857 0 0 0 16.143 0Zm-10 10H1.857A1.857 1.857 0 0 0 0 11.857v4.286C0 17.169.831 18 1.857 18h4.286A1.857 1.857 0 0 0 8 16.143v-4.286A1.857 1.857 0 0 0 6.143 10Zm10 0h-4.286A1.857 1.857 0 0 0 10 11.857v4.286c0 1.026.831 1.857 1.857 1.857h4.286A1.857 1.857 0 0 0 18 16.143v-4.286A1.857 1.857 0 0 0 16.143 10Z"/></svg>
+                                    ${tab}
+                                </a>
+                            </li>`;
+                    } else {
+                        ul.innerHTML += `<li data-page="${tab}">
+                                <a href="#" data-page="${tab}" class="inline-flex items-center px-4 py-3 rounded-lg hover:text-gray-900 bg-gray-50 hover:bg-gray-100 w-full dark:bg-gray-800 dark:hover:bg-gray-700 dark:hover:text-white">
+                                    <svg data-page="${tab}" class="w-4 h-4 me-2 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 18 18"><path d="M6.143 0H1.857A1.857 1.857 0 0 0 0 1.857v4.286C0 7.169.831 8 1.857 8h4.286A1.857 1.857 0 0 0 8 6.143V1.857A1.857 1.857 0 0 0 6.143 0Zm10 0h-4.286A1.857 1.857 0 0 0 10 1.857v4.286C10 7.169 10.831 8 11.857 8h4.286A1.857 1.857 0 0 0 18 6.143V1.857A1.857 1.857 0 0 0 16.143 0Zm-10 10H1.857A1.857 1.857 0 0 0 0 11.857v4.286C0 17.169.831 18 1.857 18h4.286A1.857 1.857 0 0 0 8 16.143v-4.286A1.857 1.857 0 0 0 6.143 10Zm10 0h-4.286A1.857 1.857 0 0 0 10 11.857v4.286c0 1.026.831 1.857 1.857 1.857h4.286A1.857 1.857 0 0 0 18 16.143v-4.286A1.857 1.857 0 0 0 16.143 10Z"/></svg>
+                                    ${tab}
+                                </a>
+                            </li>`;
+                    }
+                });
+                const lis = document.querySelectorAll("#tabs ul li");
+                for (let i = 0; i < lis.length; i++) {
+                    const li = lis[i];
+                    console.log("li:", li);
+                    li.addEventListener("click", function (evt) {
+                        console.log("CLICKED", evt.target);
+                        app.state.selected_tab = evt.target.getAttribute("data-page");
+                        console.log("page:", app.state.selected_tab);
+                        // select tab
+
+                        render_tabs();
+
+                        if (app.state.selected_tab === "Runs") {
+
+                        }
+
+                        const content = app.state.pages[app.state.selected_tab];
+                        if (!content) {
+                            return;
+                        } else if (typeof content === "string") {
+                            console.log("content:", content);
+                            document.getElementById("results").textContent = content;
+                        } else if ("innerHTML" in content) {
+                            document.getElementById("results").innerHTML = content.innerHTML;
+                            if (content.innerHTML.includes("results-table")) {
+                                new DataTable("#results-table");
+                            }
+                        } else if ("textContent" in content) {
+                            document.getElementById("results").textContent = content.textContent;                            
+                        }
+                    });
+                }
+            }
+            render_tabs();
+        </script>
+
+
+        <script src="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.js"></script>
+        <script>
+            function convertJsonToHtmlTable(jsonData) {
+                const data = jsonData;
+                if (!Array.isArray(data) || data.length === 0) {
+                    return 'No data to display.';
+                }
+
+                const table = document.createElement('table');
+                table.id = "results-table";
+                table.setAttribute('border', '1'); // Example styling
+
+                // Create table header
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                for (const key in data[0]) {
+                    const th = document.createElement('th');
+                    th.textContent = key;
+                    headerRow.appendChild(th);
+                }
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+
+                // Create table body
+                const tbody = document.createElement('tbody');
+                data.forEach(item => {
+                    const row = document.createElement('tr');
+                    for (const key in item) {
+                    const td = document.createElement('td');
+                    td.textContent = item[key];
+                    row.appendChild(td);
+                    }
+                    tbody.appendChild(row);
+                });
+                table.appendChild(tbody);
+
+                return table;
+}
+        </script>
+        <script>
+            document.getElementById("file").addEventListener("input", function (evt) {
+                (async function () {
+                    console.log("evt:", evt);
+                    const file = evt.target.files[0];
+                    console.log("file:", file);
+
+                    var zip = new JSZip();
+                    console.log("zip:", zip);
+                    const zfile = await zip.loadAsync(file);
+                    console.log("zfile:", zfile);
+
+                    app.state.files = Object.keys(zfile.files).sort();
+
+                    // load version
+                    const version_text = await zfile.files['TSDEVersion.txt'].async("string");
+                    app.state.version = version_text.split("\r\n")[0].split("=")[1];
+                    app.state.date_exported = version_text.split("\r\n")[1].split(" : ")[1];
+
+                    const run_file_name = app.state.files.find(filename => filename.endsWith("_run.xml"));
+                    const run_xml = await zfile.files[run_file_name].async("string");
+                    app.state.runs = tsde.parse_runs(run_xml);
+
+                    app.state.pages = {
+                        "Version": { textContent: app.state.version },
+                        "Export Date": app.state.date_exported,
+                        "Files": app.state.files.join("\n"),
+                        "Log": await zfile.files[".log"].async("string"),
+                        "Run": { innerHTML: convertJsonToHtmlTable(app.state.runs).outerHTML }
+                    };
+
+                    document.getElementById("tabs").style.display = "block";
+                })();
+            })
+        </script>
+    </body>
+</html>
