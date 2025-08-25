@@ -16,6 +16,11 @@
             #tabs {
                 margin-top: 50px;
             }
+
+            /* highlight internal lines */
+            td[data-column="INTERNALTYPE"][data-value="1"] {
+                background: yellow;
+            }
         </style>
         <script>
             window.app = {
@@ -27,7 +32,7 @@
                     "Trace",
                     "Vehicle Type",
                     "Comment",
-                    "Run",
+                    "Runs",
                     "Run Attribute",
                     "Roster",
                     "Roster Day",
@@ -36,8 +41,9 @@
                     "Travel",
                     "Division",
                     "Transfer",
+                    "Lines",
                     "Line Trace",
-                    "Line Attribute",
+                    "Line Attributes",
                     "Pattern Attribute",
                     "Line Point Label",
                     "Division Garage"
@@ -114,7 +120,7 @@
                         } else if ("innerHTML" in content) {
                             document.getElementById("results").innerHTML = content.innerHTML;
                             if (content.innerHTML.includes("results-table")) {
-                                new DataTable("#results-table");
+                                new DataTable("#results-table", { "pageLength": 25 });
                             }
                         } else if ("textContent" in content) {
                             document.getElementById("results").textContent = content.textContent;                            
@@ -154,9 +160,14 @@
                 data.forEach(item => {
                     const row = document.createElement('tr');
                     for (const key in item) {
-                    const td = document.createElement('td');
-                    td.textContent = item[key];
-                    row.appendChild(td);
+                        const td = document.createElement('td');
+                        const value = item[key];
+                        td.textContent = value;
+                        td.setAttribute("data-column", key);
+                        if (value.length < 100) {
+                            td.setAttribute("data-value", value)
+                        }
+                        row.appendChild(td);
                     }
                     tbody.appendChild(row);
                 });
@@ -188,12 +199,29 @@
                     const run_xml = await zfile.files[run_file_name].async("string");
                     app.state.runs = tsde.parse_runs(run_xml);
 
+                    const lin_file_name = app.state.files.find(filename => filename.endsWith("_lin.xml"));
+                    const lin_xml = await zfile.files[lin_file_name].async("string");
+                    app.state.lines = tsde.parse_lines(lin_xml);
+
+                    const lna_file_name = app.state.files.find(filename => filename.endsWith("_lna.xml"));
+                    const lna_xml = await zfile.files[lna_file_name].async("string");
+                    app.state.line_attributes = tsde.parse_line_attributes(lna_xml);
+
+                    const line_attributes_transposed = {};
+                    app.state.line_attributes.forEach(function (lna) {
+                        if (line_attributes_transposed[lna.lid] === undefined) line_attributes_transposed[lna.lid] = {};
+                        line_attributes_transposed[lna.lid][lna.aname] = lna.avalue;
+                    });
+                    const line_attributes_transposed_sorted = Object.entries(line_attributes_transposed).map(([key, value]) => ({ "Line ID": key, ...value }));
+
                     app.state.pages = {
                         "Version": { textContent: app.state.version },
                         "Export Date": app.state.date_exported,
                         "Files": app.state.files.join("\n"),
                         "Log": await zfile.files[".log"].async("string"),
-                        "Run": { innerHTML: convertJsonToHtmlTable(app.state.runs).outerHTML }
+                        "Lines": { innerHTML: convertJsonToHtmlTable(app.state.lines).outerHTML },
+                        "Line Attributes": { innerHTML: convertJsonToHtmlTable(line_attributes_transposed_sorted).outerHTML },
+                        "Runs": { innerHTML: convertJsonToHtmlTable(app.state.runs).outerHTML },
                     };
 
                     document.getElementById("tabs").style.display = "block";
